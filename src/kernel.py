@@ -1,10 +1,11 @@
 import numpy as np
+from scipy.special import logsumexp
 
 
-def _meshify(t: np.ndarray):
-    dim = len(t)
-    t_mesh = np.repeat(t, dim).reshape((dim, dim))
-    return (t_mesh, t_mesh.T)
+def _meshify(z: np.ndarray):
+    dim = len(z)
+    z_mesh = np.repeat(z, dim).reshape((dim, dim))
+    return (z_mesh, z_mesh.T)
 
 
 def min_kernel(t: np.ndarray):
@@ -21,7 +22,7 @@ def bridge_kernel(t: np.ndarray):
 
 def smooth_bridge_kernel(t: np.ndarray, epsilon=1.0):
     s, t = _meshify(t)
-    out = -epsilon * np.log(np.exp(-s / epsilon) + np.exp(-t / epsilon)) - s * t
+    out = -epsilon * logsumexp(np.dstack([-s / epsilon, -t / epsilon]), axis=2) - s * t
     return out
 
 
