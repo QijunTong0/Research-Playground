@@ -1,6 +1,6 @@
 """
 1次元ランジェバン方程式の時空間 (t-x) シミュレーション
-テーマ: ピッチフォーク分岐と、それに伴う確率分布の時間発展
+テーマ: 経路の分岐と、それに伴う確率分布の時間発展
 """
 
 import numpy as np
@@ -8,6 +8,7 @@ import numpy as np
 # 明示的なインポート
 from manim import (
     BLUE,
+    DOWN,
     GRAY,
     # 定数・色・配置
     RED,
@@ -20,14 +21,17 @@ from manim import (
     Axes,
     # アニメーション用クラス
     Create,
+    DashedVMobject,  # 点線用
     DecimalNumber,
     Dot,
     FadeIn,
+    MathTex,
     Scene,
     Text,
     TracedPath,
     ValueTracker,
     VGroup,
+    VMobject,
     Write,
     config,
     linear,
@@ -36,16 +40,30 @@ from manim import (
 
 # --- 共通の物理パラメータ・関数 ---
 def get_bifurcation_force(x, t, t_bifurcation=3.0):
-    """ピッチフォーク分岐の力場計算"""
+    """分岐の力場計算"""
     # 分岐パラメータ a(t)
     a = 0.8 * (t - t_bifurcation)
     # 力 F(x) = -x^3 + a(t)x
     return 0.8 * (-(x**3) + a * x)
 
 
+def compute_kde_distribution(particle_positions, bandwidth=0.3, num_points=80):
+    """カーネル密度推定(KDE)による分布計算"""
+    x_grid = np.linspace(-3, 3, num_points)
+    density = np.zeros_like(x_grid)
+    n = len(particle_positions)
+
+    for x_p in particle_positions:
+        density += np.exp(-0.5 * ((x_grid - x_p) / bandwidth) ** 2)
+
+    # 正規化とスケーリング (高さ調整)
+    density = density / (n * bandwidth * np.sqrt(2 * np.pi)) * 3.0
+    return x_grid, density
+
+
 class LangevinSpaceTime(Scene):
     """
-    シーン1: 時空図上でのサンプルパスの枝分かれ（一本ずつ描画）
+    シーン1: 時空図上でのサンプルパスの分岐（一本ずつ描画）
     """
 
     def construct(self):
@@ -89,10 +107,12 @@ class LangevinSpaceTime(Scene):
                 )
                 vector_field.add(arrow)
 
-        title = Text("ピッチフォーク分岐 (サンプルパス)", font_size=36).to_edge(UP)
+        # 修正2: 専門用語を避けた一般的なタイトルに変更
+        title = Text("経路の分岐シミュレーション", font_size=36).to_edge(UP)
 
-        self.add(axes, labels)
-        self.play(FadeIn(vector_field), Write(title), run_time=1.5)
+        # 修正1: タイトルやグラフをフェードインで表示
+        self.play(FadeIn(axes), Write(labels), Write(title), run_time=1.5)
+        self.play(FadeIn(vector_field), run_time=1.0)
 
         # --- シミュレーション ---
         finished_paths = VGroup()
@@ -189,9 +209,10 @@ class LangevinDistribution(Scene):
 
         labels = axes.get_axis_labels(x_label="t", y_label="x")
 
-        title = Text("確率分布の時間発展 (時空図)", font_size=36).to_edge(UP)
+        # 修正2: 専門用語を避けた一般的なタイトルに変更
+        title = Text("確率分布の時間発展", font_size=36).to_edge(UP)
 
-        # 修正2: いきなりaddせず、アニメーションで表示
+        # アニメーションで表示
         self.play(FadeIn(axes), Write(labels), Write(title), run_time=1.5)
 
         # --- 粒子の初期化 ---
@@ -206,7 +227,6 @@ class LangevinDistribution(Scene):
             dot.move_to(axes.c2p(0, start_x))
 
             # 軌跡（薄く残す）
-            # 修正1: dissipating_time=None に変更して消えないようにする
             trace = TracedPath(
                 dot.get_center,
                 stroke_color=YELLOW,
@@ -221,7 +241,6 @@ class LangevinDistribution(Scene):
 
             particle_data.append(start_x)
 
-        # 【重要】Updaterを持つVGroup自体をシーンに追加しないとアニメーションしません
         # 粒子は最初は見えない状態からFadeInさせる
         self.play(FadeIn(particles), run_time=1.0)
 
@@ -236,8 +255,8 @@ class LangevinDistribution(Scene):
             stroke_width=4,
         )
 
-        # 分布曲線を目立たせるためのテキスト
-        dist_label = Text("P(x, t)", font_size=24, color=BLUE).next_to(
+        # 修正3: MathTexを使用してLaTeXレンダリング
+        dist_label = MathTex(r"P(x, t)", font_size=24, color=BLUE).next_to(
             distribution_curve, UP
         )
 
@@ -284,25 +303,11 @@ class LangevinDistribution(Scene):
                 dot.move_to(axes.c2p(current_t, particle_data[i]))
 
             # 2. 分布の計算と描画 (同じグラフ上に重ねる)
-            x_grid = np.linspace(-3, 3, 80)
-            density = np.zeros_like(x_grid)
+            # 共通化したKDE関数を使用
+            x_grid, density = compute_kde_distribution(particle_data)
 
-            # KDE
-            bandwidth = 0.3
-            current_x_vals = np.array(particle_data)
-
-            for x_p in current_x_vals:
-                density += np.exp(-0.5 * ((x_grid - x_p) / bandwidth) ** 2)
-
-            # 正規化とスケーリング
-            # densityの高さを時間軸(t)上の幅に変換する
-            scale_factor = 1.0  # 密度1あたりのt軸上の長さ
-            density = (
-                density / (n_particles * bandwidth * np.sqrt(2 * np.pi)) * 3.0
-            )  # 高さを強調
-
-            # 時刻 t を基準線として、密度分だけ右にずらす
-            # x_values は t座標, y_values は x座標
+            # スケーリング
+            scale_factor = 1.0
             t_coords = current_t + density * scale_factor
 
             new_curve = axes.plot_line_graph(
@@ -325,7 +330,194 @@ class LangevinDistribution(Scene):
         self.wait(1)
 
 
+class LangevinInverseProblem(Scene):
+    """
+    シーン3: 逆問題デモンストレーション
+    1. 未来の周辺分布(t=2,4,6,8)を「観測データ」として事前に描画
+    2. t=0からシミュレーションを行い、分布が観測データに一致していく様子を見せる
+    """
+
+    def construct(self):
+        # --- パラメータ (Scene2と同じにして整合性を取る) ---
+        seed = 999
+        n_particles = 150
+        t_max = 10.0
+        dt = 0.05
+        sim_dt = 0.01
+        sigma = 0.5
+        t_bifurcation = 3.0
+
+        target_times = [2.0, 4.0, 6.0, 8.0]  # 分布を表示する時刻
+
+        # --- 描画オブジェクト ---
+        axes = Axes(
+            x_range=[0, t_max, 1],
+            y_range=[-3, 3, 1],
+            x_length=10,
+            y_length=6,
+            axis_config={"include_tip": True, "color": GRAY},
+        ).add_coordinates()
+        labels = axes.get_axis_labels(x_label="t", y_label="x")
+
+        title = Text("逆問題：観測データへのフィッティング", font_size=36).to_edge(UP)
+        subtitle = Text("点線は既知の観測分布を示す", font_size=24, color=GRAY).next_to(
+            title, DOWN
+        )
+
+        self.play(
+            FadeIn(axes), Write(labels), Write(title), Write(subtitle), run_time=1.5
+        )
+
+        # --- 1. 事前計算 (Target Distributions) ---
+        # シミュレーションをバックグラウンドで回して、ターゲット時刻の分布を計算する
+        np.random.seed(seed)  # 同じシードを使用
+
+        # 粒子初期化（計算用）
+        sim_particles = np.random.normal(0, 0.3, n_particles)
+
+        target_curves = VGroup()
+
+        current_sim_t = 0.0
+        target_idx = 0
+
+        # ステップごとのループ（描画はしない）
+        while current_sim_t < t_max and target_idx < len(target_times):
+            # 次のターゲット時刻までのステップ数
+            next_target_t = target_times[target_idx]
+
+            # 到達していないなら進める
+            while current_sim_t < next_target_t:
+                f = get_bifurcation_force(sim_particles, current_sim_t, t_bifurcation)
+                noise = np.random.normal(0, 1, n_particles)
+                dx = f * sim_dt + sigma * np.sqrt(sim_dt) * noise
+                sim_particles += dx
+                sim_particles = np.clip(sim_particles, -3.5, 3.5)
+                current_sim_t += sim_dt
+
+            # ターゲット時刻に到達したので分布を作成
+            x_grid, density = compute_kde_distribution(sim_particles)
+
+            # 分布曲線の生成 (点線、薄い色)
+            scale_factor = 1.0
+            t_coords = next_target_t + density * scale_factor
+
+            # 修正: plot_line_graphはVGroupを返すためDashedVMobjectでエラーになることがある
+            # 代わりに点列から直接VMobjectを作成する
+            points = [axes.c2p(t, x) for t, x in zip(t_coords, x_grid)]
+
+            # 1本の連続した線として作成
+            curve_vm = VMobject()
+            curve_vm.set_points_as_corners(points)
+            curve_vm.set_color(GRAY)
+
+            # DashedVMobjectで点線化
+            dashed_curve = DashedVMobject(curve_vm, num_dashes=25, dashed_ratio=0.5)
+
+            # ラベル
+            label = MathTex(
+                f"t={int(next_target_t)}", font_size=20, color=GRAY
+            ).next_to(axes.c2p(next_target_t, 3.2), UP)
+
+            target_curves.add(dashed_curve, label)
+            target_idx += 1
+
+        # ターゲット分布を表示
+        self.play(Create(target_curves), run_time=2.0)
+        self.wait(0.5)
+
+        # --- 2. リアルタイムシミュレーション (Animation) ---
+        # シードをリセットして、同じ挙動を再現
+        np.random.seed(seed)
+
+        particles = VGroup()
+        particle_data = []
+
+        # 粒子の初期化 (描画用)
+        for _ in range(n_particles):
+            start_x = np.random.normal(0, 0.3)
+            dot = Dot(color=YELLOW, radius=0.04, fill_opacity=0.5)
+            dot.move_to(axes.c2p(0, start_x))
+
+            trace = TracedPath(
+                dot.get_center,
+                stroke_color=YELLOW,
+                stroke_opacity=0.2,
+                stroke_width=1.0,
+                dissipating_time=None,
+            )
+            particles.add(dot)
+            self.add(trace)
+            particle_data.append(start_x)
+
+        self.play(FadeIn(particles), run_time=1.0)
+
+        # リアルタイム分布曲線
+        realtime_curve = axes.plot_line_graph(
+            x_values=[0, 0],
+            y_values=[-3, 3],
+            line_color=BLUE,
+            add_vertex_dots=False,
+            stroke_width=4,
+        )
+        dist_label = MathTex(r"P_{sim}(x, t)", font_size=24, color=BLUE).next_to(
+            realtime_curve, UP
+        )
+
+        self.play(Create(realtime_curve), Write(dist_label), run_time=1.0)
+
+        # トラッカー
+        t_tracker = ValueTracker(0.0)
+        time_label = DecimalNumber(0, num_decimal_places=1, include_sign=False).next_to(
+            title, RIGHT
+        )
+        self.add(time_label)
+
+        def update_scene(mob):
+            current_t = t_tracker.get_value()
+            time_label.set_value(current_t)
+
+            # 物理計算
+            steps = int(dt / sim_dt)
+            for _ in range(steps):
+                if current_t >= t_max:
+                    break
+                x_vals = np.array(particle_data)
+                f = get_bifurcation_force(x_vals, current_t, t_bifurcation)
+                noise = np.random.normal(0, 1, n_particles)
+                dx = f * sim_dt + sigma * np.sqrt(sim_dt) * noise
+                x_vals += dx
+                x_vals = np.clip(x_vals, -3.5, 3.5)
+                for i in range(n_particles):
+                    particle_data[i] = x_vals[i]
+
+            for i, dot in enumerate(particles):
+                dot.move_to(axes.c2p(current_t, particle_data[i]))
+
+            # 分布更新
+            x_grid, density = compute_kde_distribution(particle_data)
+            scale_factor = 1.0
+            t_coords = current_t + density * scale_factor
+
+            new_curve = axes.plot_line_graph(
+                x_values=t_coords,
+                y_values=x_grid,
+                line_color=BLUE,
+                add_vertex_dots=False,
+                stroke_width=4,
+            )
+            realtime_curve.become(new_curve)
+            dist_label.next_to(axes.c2p(current_t, 3.2), UP)
+
+        particles.add_updater(update_scene)
+
+        self.play(t_tracker.animate.set_value(t_max), run_time=8.0, rate_func=linear)
+
+        particles.remove_updater(update_scene)
+        self.wait(1)
+
+
 if __name__ == "__main__":
     config.quality = "medium_quality"
-    scene = LangevinDistribution()
+    # 逆問題シーンを実行
+    scene = LangevinInverseProblem()
     scene.render()
