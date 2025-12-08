@@ -39,7 +39,7 @@ class LangevinSpaceTime(Scene):
         n_particles = 8  # サンプルパスの本数
         t_max = 10.0  # シミュレーション終了時間
         dt = 0.025  # 時間刻み幅 (より細かく変更)
-        sigma = 0.6  # ノイズの強さ
+        sigma = 1.2  # ノイズの強さ
 
         # 凸ポテンシャル（調和振動子）の中心を動かすパラメータ
         # U(x, t) = 0.5 * k * (x - center(t))^2
@@ -111,9 +111,9 @@ class LangevinSpaceTime(Scene):
 
         # タイトル
         title = Text("Langevin Dynamics (Convex Potential)", font_size=32).to_edge(UP)
-        subtitle = Text(
-            "One-by-one sample paths in Space-Time", font_size=20, color=GRAY
-        ).next_to(title, DOWN)
+        subtitle = Text("サンプルパス in Space-Time", font_size=20, color=GRAY).next_to(
+            title, DOWN
+        )
 
         # 背景のセットアップ
         self.add(axes, labels)
