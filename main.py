@@ -8,14 +8,13 @@ import numpy as np
 # 明示的なインポート
 from manim import (
     BLUE,
-    DOWN,
     GRAY,
     # 定数・色・配置
     RED,
-    RIGHT,
     TEAL,
     UL,
     UP,
+    UR,
     YELLOW,
     Arrow,
     Axes,
@@ -31,9 +30,8 @@ from manim import (
     TracedPath,
     ValueTracker,
     VGroup,
-    VMobject,
+    VMobject,  # 修正: VMobjectのインポート漏れを追加
     Write,
-    config,
     linear,
 )
 
@@ -107,11 +105,9 @@ class LangevinSpaceTime(Scene):
                 )
                 vector_field.add(arrow)
 
-        # 修正2: 専門用語を避けた一般的なタイトルに変更
-        title = Text("経路の分岐シミュレーション", font_size=36).to_edge(UP)
-
-        # 修正1: タイトルやグラフをフェードインで表示
-        self.play(FadeIn(axes), Write(labels), Write(title), run_time=1.5)
+        # 修正: タイトル削除
+        # タイトルやグラフをフェードインで表示
+        self.play(FadeIn(axes), Write(labels), run_time=1.5)
         self.play(FadeIn(vector_field), run_time=1.0)
 
         # --- シミュレーション ---
@@ -209,11 +205,9 @@ class LangevinDistribution(Scene):
 
         labels = axes.get_axis_labels(x_label="t", y_label="x")
 
-        # 修正2: 専門用語を避けた一般的なタイトルに変更
-        title = Text("確率分布の時間発展", font_size=36).to_edge(UP)
-
+        # 修正: タイトル削除
         # アニメーションで表示
-        self.play(FadeIn(axes), Write(labels), Write(title), run_time=1.5)
+        self.play(FadeIn(axes), Write(labels), run_time=1.5)
 
         # --- 粒子の初期化 ---
         particles = VGroup()
@@ -255,7 +249,7 @@ class LangevinDistribution(Scene):
             stroke_width=4,
         )
 
-        # 修正3: MathTexを使用してLaTeXレンダリング
+        # MathTexを使用してLaTeXレンダリング
         dist_label = MathTex(r"P(x, t)", font_size=24, color=BLUE).next_to(
             distribution_curve, UP
         )
@@ -265,9 +259,10 @@ class LangevinDistribution(Scene):
 
         # --- シミュレーション用トラッカー ---
         t_tracker = ValueTracker(0.0)
-        time_label = DecimalNumber(0, num_decimal_places=1, include_sign=False).next_to(
-            title, RIGHT
-        )
+        # 修正: タイトルがないので、位置を右上に固定
+        time_label = DecimalNumber(
+            0, num_decimal_places=1, include_sign=False
+        ).to_corner(UR)
         self.add(time_label)
 
         # --- アップデータ ---
@@ -359,14 +354,8 @@ class LangevinInverseProblem(Scene):
         ).add_coordinates()
         labels = axes.get_axis_labels(x_label="t", y_label="x")
 
-        title = Text("逆問題：観測データへのフィッティング", font_size=36).to_edge(UP)
-        subtitle = Text("点線は既知の観測分布を示す", font_size=24, color=GRAY).next_to(
-            title, DOWN
-        )
-
-        self.play(
-            FadeIn(axes), Write(labels), Write(title), Write(subtitle), run_time=1.5
-        )
+        # 修正: タイトルとサブタイトルを削除
+        self.play(FadeIn(axes), Write(labels), run_time=1.5)
 
         # --- 1. 事前計算 (Target Distributions) ---
         # シミュレーションをバックグラウンドで回して、ターゲット時刻の分布を計算する
@@ -401,8 +390,7 @@ class LangevinInverseProblem(Scene):
             scale_factor = 1.0
             t_coords = next_target_t + density * scale_factor
 
-            # 修正: plot_line_graphはVGroupを返すためDashedVMobjectでエラーになることがある
-            # 代わりに点列から直接VMobjectを作成する
+            # VMobjectを作成
             points = [axes.c2p(t, x) for t, x in zip(t_coords, x_grid)]
 
             # 1本の連続した線として作成
@@ -467,9 +455,10 @@ class LangevinInverseProblem(Scene):
 
         # トラッカー
         t_tracker = ValueTracker(0.0)
-        time_label = DecimalNumber(0, num_decimal_places=1, include_sign=False).next_to(
-            title, RIGHT
-        )
+        # 修正: タイトルがないので、位置を右上に固定
+        time_label = DecimalNumber(
+            0, num_decimal_places=1, include_sign=False
+        ).to_corner(UR)
         self.add(time_label)
 
         def update_scene(mob):
@@ -514,10 +503,3 @@ class LangevinInverseProblem(Scene):
 
         particles.remove_updater(update_scene)
         self.wait(1)
-
-
-if __name__ == "__main__":
-    config.quality = "medium_quality"
-    # 逆問題シーンを実行
-    scene = LangevinInverseProblem()
-    scene.render()
