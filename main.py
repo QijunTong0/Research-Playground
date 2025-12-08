@@ -25,6 +25,7 @@ from manim import (
     DecimalNumber,
     Dot,
     FadeIn,
+    Flash,
     MathTex,
     Scene,
     Text,
@@ -534,6 +535,38 @@ def generate_brownian_bridge(start_val, end_val, steps=100, sigma=0.8):
     return t_vals, bridge
 
 
+def generate_brownian_bridge_TI(t_start, x_start, t_end, x_end, dt=0.005, sigma=0.8):
+    """
+    (t_start, x_start) から (t_end, x_end) へのBrownian Bridgeを生成
+    B(t) = x_start + W(t - t_start) - (t - t_start)/(t_end - t_start) * [W(t_end - t_start) - (x_end - x_start)]
+    """
+    # 時間配列
+    t_vals = np.arange(t_start, t_end, dt)
+    if len(t_vals) == 0:
+        return np.array([t_start, t_end]), np.array([x_start, x_end])
+
+    # 最後の点を含めるための調整
+    if t_vals[-1] < t_end:
+        t_vals = np.append(t_vals, t_end)
+
+    n = len(t_vals)
+    T = t_end - t_start
+    t_rel = t_vals - t_start
+
+    # 標準ブラウン運動 W(tau)
+    dW = np.random.normal(0, np.sqrt(dt), n - 1)
+    W = np.concatenate(([0], np.cumsum(dW)))
+    W = sigma * W  # ノイズ強度適用
+
+    # Bridge変換
+    # 到達すべき差分: (x_end - x_start)
+    # Wによるずれ: W(T)
+    # 補正項: (tau / T) * (W(T) - (x_end - x_start))
+    bridge = x_start + W - (t_rel / T) * (W[-1] - (x_end - x_start))
+
+    return t_vals, bridge
+
+
 def run_brownian_bridge_logic(scene):
     """シーン4: ブラウン橋 (Brownian Bridge) デモ"""
     np.random.seed(1234)  # 再現性のため
@@ -678,8 +711,11 @@ def run_trajectory_inference_logic(scene):
         ).to_corner(UL)
         scene.add(prog_text)
 
+        # 修正: np.random.choice をインデックス選択に変更
         # 始点 (t=0) をランダムに選ぶ
-        current_dot = np.random.choice(dots_by_t[0])
+        start_idx = np.random.randint(len(dots_by_t[0]))
+        current_dot = dots_by_t[0][start_idx]
+
         scene.play(Flash(current_dot, color=YELLOW, flash_radius=0.2), run_time=0.3)
 
         # 現在のパスのセグメントを保存するリスト
@@ -690,22 +726,21 @@ def run_trajectory_inference_logic(scene):
             t_start = t_points[j]
             t_end = t_points[j + 1]
 
-            # 始点の座標 (axes座標系から値に戻すのは面倒なので保持しておいたほうが楽だが、ここではget_centerから逆算)
+            # 始点の座標
             start_point = current_dot.get_center()
             p_start = axes.p2c(start_point)
             x_start = p_start[1]
 
-            # 次の点をランダムに選ぶ
-            next_dot = np.random.choice(dots_by_t[j + 1])
+            # 修正: 次の点をランダムに選ぶ (インデックス使用)
+            next_idx = np.random.randint(len(dots_by_t[j + 1]))
+            next_dot = dots_by_t[j + 1][next_idx]
+
             end_point = next_dot.get_center()
             p_end = axes.p2c(end_point)
             x_end = p_end[1]
 
-            # ハイライト
-            # scene.play(Flash(next_dot, color=YELLOW, flash_radius=0.2), run_time=0.2)
-
             # Brownian Bridge計算
-            t_vals, x_vals = generate_brownian_bridge(
+            t_vals, x_vals = generate_brownian_bridge_TI(
                 t_start, x_start, t_end, x_end, dt=0.01, sigma=0.6
             )
 
@@ -721,6 +756,7 @@ def run_trajectory_inference_logic(scene):
 
             current_path_segments.add(segment)
             current_dot = next_dot
+            scene.play(Flash(current_dot, color=YELLOW, flash_radius=0.2), run_time=0.3)
 
         # パス完成後、薄くして残す
         finished_paths.add(current_path_segments)
