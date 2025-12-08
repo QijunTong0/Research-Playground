@@ -18,6 +18,8 @@ from manim import (
     YELLOW,
     Arrow,
     Axes,
+    # アニメーション用クラス
+    Create,
     DecimalNumber,
     Dot,
     FadeIn,
@@ -26,7 +28,6 @@ from manim import (
     TracedPath,
     ValueTracker,
     VGroup,
-    # アニメーション用クラス
     Write,
     config,
     linear,
@@ -190,7 +191,8 @@ class LangevinDistribution(Scene):
 
         title = Text("確率分布の時間発展 (時空図)", font_size=36).to_edge(UP)
 
-        self.add(axes, labels, title)
+        # 修正2: いきなりaddせず、アニメーションで表示
+        self.play(FadeIn(axes), Write(labels), Write(title), run_time=1.5)
 
         # --- 粒子の初期化 ---
         particles = VGroup()
@@ -204,12 +206,13 @@ class LangevinDistribution(Scene):
             dot.move_to(axes.c2p(0, start_x))
 
             # 軌跡（薄く残す）
+            # 修正1: dissipating_time=None に変更して消えないようにする
             trace = TracedPath(
                 dot.get_center,
                 stroke_color=YELLOW,
                 stroke_opacity=0.2,  # 薄くして分布曲線を見やすくする
                 stroke_width=1.0,
-                dissipating_time=3.0,
+                dissipating_time=None,
             )
 
             particles.add(dot)
@@ -219,7 +222,8 @@ class LangevinDistribution(Scene):
             particle_data.append(start_x)
 
         # 【重要】Updaterを持つVGroup自体をシーンに追加しないとアニメーションしません
-        self.add(particles)
+        # 粒子は最初は見えない状態からFadeInさせる
+        self.play(FadeIn(particles), run_time=1.0)
 
         # --- 分布曲線の初期化 ---
         # axes 上に描画する線。
@@ -231,13 +235,14 @@ class LangevinDistribution(Scene):
             add_vertex_dots=False,
             stroke_width=4,
         )
-        self.add(distribution_curve)
 
         # 分布曲線を目立たせるためのテキスト
         dist_label = Text("P(x, t)", font_size=24, color=BLUE).next_to(
             distribution_curve, UP
         )
-        self.add(dist_label)
+
+        # 分布曲線とラベルもアニメーションで表示
+        self.play(Create(distribution_curve), Write(dist_label), run_time=1.0)
 
         # --- シミュレーション用トラッカー ---
         t_tracker = ValueTracker(0.0)
