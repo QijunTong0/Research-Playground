@@ -92,12 +92,11 @@ class LangevinSpaceTime(Scene):
         for t_val in t_steps:
             for x_val in x_steps:
                 f = get_bifurcation_force(x_val, t_val, t_bifurcation)
-                vec_t = 0.3
                 vec_x = f * 0.15
-                color = RED if f > 0 else TEAL
+                color = TEAL
                 arrow = Arrow(
                     start=axes.c2p(t_val, x_val),
-                    end=axes.c2p(t_val + vec_t, x_val + vec_x),
+                    end=axes.c2p(t_val, x_val + vec_x),
                     buff=0,
                     max_tip_length_to_length_ratio=0.35,
                     max_stroke_width_to_length_ratio=10,
