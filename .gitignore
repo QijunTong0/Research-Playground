@@ -11,7 +11,7 @@ wheels/
 
 #data
 data/
-
+media/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
