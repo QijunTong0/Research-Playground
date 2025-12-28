@@ -74,7 +74,33 @@ class OfutonGravitySimulation(manim.ThreeDScene):
         self.wait(1)
 
         # 4. 人間（粒子）の挙動
-        human = manim.Sphere(radius=0.15, color=manim.YELLOW)
+        # 棒人間 (Stick Figure) の構築
+        head = manim.Sphere(radius=0.06, color=manim.YELLOW).move_to([0, 0, 0.08])  # 頭
+        body = manim.Line(
+            start=[0, 0, 0.08], end=[0, 0, -0.08], color=manim.YELLOW, stroke_width=4
+        )  # 胴体
+        arms = manim.Line(
+            start=[-0.08, 0, 0.02],
+            end=[0.08, 0, 0.02],
+            color=manim.YELLOW,
+            stroke_width=4,
+        )  # 腕
+        leg_l = manim.Line(
+            start=[0, 0, -0.08],
+            end=[-0.05, 0, -0.18],
+            color=manim.YELLOW,
+            stroke_width=4,
+        )  # 左足
+        leg_r = manim.Line(
+            start=[0, 0, -0.08],
+            end=[0.05, 0, -0.18],
+            color=manim.YELLOW,
+            stroke_width=4,
+        )  # 右足
+
+        human = manim.VGroup(head, body, arms, leg_l, leg_r)
+        # 寝ている姿勢（水平）になるよう回転
+        human.rotate(manim.PI / 2, axis=manim.RIGHT)
 
         # 軌跡の設定変更: dissipating_timeを長くして軌跡が残るようにする
         human_trail = manim.TracedPath(
@@ -118,7 +144,7 @@ class OfutonGravitySimulation(manim.ThreeDScene):
 
         # 追加: おやすみ軌道のラベル
         orbit_label = (
-            manim.Text("おやすみ軌道 (Oyasumi-Orbit)", color=manim.YELLOW, font_size=24)
+            manim.Text("おやすみ軌道", color=manim.YELLOW, font_size=24)
             .next_to(metric_tex, manim.DOWN, buff=0.5)
             .to_edge(manim.LEFT)
         )
