@@ -43,3 +43,10 @@ Or you can directly add by
 ```bash
 uv add some-new-package
 ```
+
+## manim commands
+Rendering manim scene defined in main.py
+```bash
+manim -pql main.py SceneClass
+manim -pqh main.py SceneClass
+```
