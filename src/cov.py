@@ -16,7 +16,7 @@ def generate(
 ) -> tuple[np.ndarray, np.ndarray]:
     t = np.linspace(lim_l, lim_r, num)
     if shuffle:
-        t = reversed(np.random.shuffle(t))
+        t = np.array(list(t)[::2] + list(t)[1::2])
     C_m = gaussian(t)
     C_n = laplacian(t)
     return C_m, C_n
